@@ -11,7 +11,7 @@ google_geo_key = cred.google_places_key
 params = {
 
                    "location" : [52.4848525,13.356632]
-                  , "radius"  : 600
+                  , "radius"  : 250
                   , "type" : "restaurant"
                   , "key" : google_geo_key
                     }
@@ -19,7 +19,6 @@ params = {
 def create_client(params, output = "json"):
 
 
-    
     assert "location" in params and "radius" in params and "type" in params and "key" in params
 
     string_list = [ "location=" +",".join(map(str,params["location"])) ]
@@ -39,28 +38,39 @@ def create_client(params, output = "json"):
     return client
 
 
+def df_prep(func):
+    """
+    acquires dataframe and cleans/ purges output
+    """
+    data_frame = func()
+    data_frame["opening_hours"] = data_frame["opening_hours"].astype(dict)
+    data_frame["opening_hours"].fillna("empty", inplace = True)
+    data_frame["is_open"] = data_frame["opening_hours"].apply(
+            lambda x: x["open_now"] if "open_now" in x else None)
+    keep_keys = ["name", "vicinity", "rating", "is_open"]
+
+    return data_frame[keep_keys]
+    
+@df_prep
 def execute_request():
     
     
     global_results = []
     
     while True:
-        print(len(global_results))
-        time.sleep(5)
+            
+        time.sleep(3)
         response = requests.get(create_client(params))
         json_file = response.json()
         
         global_results.extend(json_file["results"])
+        if (len(global_results)) == 0:
+            print (json_file)
         if "next_page_token" in json_file:
             params["pagetoken"] = json_file["next_page_token"]
         else:
             break
-    print(len(global_results)) 
-    return global_results
-test =  execute_request()
+        
+ 
+    return pd.DataFrame(global_results)
 
-#print (create_client(params))
-#a = (requests.get(create_client(params)))
-#
-#json_file = a.json()["results"]
-#df = pd.DataFrame(json_file)
